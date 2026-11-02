@@ -1,0 +1,12 @@
+{
+  "name": "hiking-cron",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "cleanup:files": "node --env-file=.env scripts/cleanup-orphan-files.js",
+    "enrich:elevation": "node --env-file=.env scripts/enrich-elevation.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.0"
+  }
+}
