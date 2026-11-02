@@ -1,0 +1,44 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete --exclude='.git*' --exclude='.github' --exclude='node_modules' --filter='protect .env' --filter='protect uploads/'
+          path: ./
+          remote_path: ${{ secrets.TARGET_DIR }}/
+          remote_host: ${{ secrets.SERVER_IP }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Install dependencies on server (only if lock changed)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.TARGET_DIR }}
+            # md5 текущего lock-файла
+            NEW_HASH=$(md5sum package-lock.json | awk '{print $1}')
+            OLD_HASH=$(cat .package-lock.md5 2>/dev/null || echo "none")
+
+            if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+              echo "package-lock.json changed, running npm ci"
+              npm ci --omit=dev
+              echo "$NEW_HASH" > .package-lock.md5
+            else
+              echo "package-lock.json unchanged, skipping npm ci"
+            fi
