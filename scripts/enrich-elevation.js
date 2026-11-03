@@ -287,7 +287,7 @@ async function main() {
                     // Сохраняем preview_polyline сразу
                     await query(
                         'UPDATE routes SET preview_polyline = $1 WHERE id = $2',
-                        [previewPolyline, route.id]
+                        [JSON.stringify(previewPolyline), route.id]
                     );
                 }
 
