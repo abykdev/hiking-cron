@@ -148,6 +148,22 @@ function encodePreviewPolyline(points) {
     return polyline.encode(points);
 }
 
+function normalizePreviewPolyline(value) {
+    if (typeof value !== 'string') return value;
+
+    const trimmed = value.trim();
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (typeof parsed === 'string') return parsed;
+        } catch (_e) {
+            return value;
+        }
+    }
+
+    return value;
+}
+
 /**
  * Запрашивает высоты у Open Topo Data для батча точек.
  * Возвращает массив elevation (число или null) в том же порядке.
@@ -247,7 +263,7 @@ async function main() {
 
                 if (route.preview_polyline) {
                     // 1a. Polyline уже есть — декодируем в [lat, lon]
-                    previewPolyline = route.preview_polyline;
+                    previewPolyline = normalizePreviewPolyline(route.preview_polyline);
                     try {
                         simplifiedPoints = polyline.decode(previewPolyline);
                     } catch (e) {
@@ -293,7 +309,7 @@ async function main() {
                     // Сохраняем preview_polyline сразу
                     await query(
                         'UPDATE routes SET preview_polyline = $1 WHERE id = $2',
-                        [JSON.stringify(previewPolyline), route.id]
+                        [previewPolyline, route.id]
                     );
                 }
 
