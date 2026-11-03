@@ -68,16 +68,14 @@ async function fetchElevationsBatch(points) {
                 result: data.results[j]?.elevation ?? null,
             }));
 
-            await query(
-                `INSERT INTO external_api_calls (key, provider, result)
-         SELECT * FROM unnest($1::text[], $2::text[], $3::jsonb[])
+            for (const ins of inserts) {
+                await query(
+                    `INSERT INTO external_api_calls (key, provider, result)
+         VALUES ($1, $2, $3)
          ON CONFLICT (key) DO NOTHING`,
-                [
-                    inserts.map((x) => x.key),
-                    inserts.map(() => 'opentopodata'),
-                    inserts.map((x) => x.result),
-                ]
-            );
+                    [ins.key, 'opentopodata', ins.result]
+                );
+            }
 
             // Соблюдаем лимит
             if (i + 100 < missing.length) await sleep(1100);
