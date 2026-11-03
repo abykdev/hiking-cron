@@ -3,6 +3,7 @@ const path = require('path');
 const { query, close } = require('../lib/db');
 const log = require('../lib/logger');
 const { getOrFetch, elevationKey } = require('../lib/api-cache');
+const { fetchWithRetry } = require('../lib/http');
 
 // @turf/simplify и парсер polyline
 const simplify = require('@turf/simplify').default;
@@ -21,7 +22,9 @@ async function fetchElevation(lat, lon) {
         const url = `https://api.opentopodata.org/v1/srtm90m?locations=${lat},${lon}`;
         const res = await fetchWithRetry(url);
         const data = await res.json();
-        return data.results[0]?.elevation ?? null;
+        const elevation = data.results?.[0]?.elevation;
+        if (typeof elevation !== 'number') throw new Error('No elevation in response');
+        return elevation;
     });
 }
 
@@ -62,11 +65,14 @@ async function fetchElevationsBatch(points) {
             const res = await fetchWithRetry(url);
             const data = await res.json();
 
-            // Сохраняем в кеш
-            const inserts = batch.map((m, j) => ({
-                key: m.key,
-                result: data.results[j]?.elevation ?? null,
-            }));
+            if (data.status !== 'OK' || !Array.isArray(data.results)) {
+                throw new Error(`OpenTopoData status ${data.status}: ${data.error}`);
+            }
+
+            // В кеш пишем только реальные высоты, null не сохраняем
+            const inserts = batch
+                .map((m, j) => ({ key: m.key, result: data.results[j]?.elevation }))
+                .filter((x) => typeof x.result === 'number' && Number.isFinite(x.result));
 
             for (const ins of inserts) {
                 await query(
