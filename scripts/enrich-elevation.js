@@ -6,7 +6,7 @@ const { getOrFetch, elevationKey } = require('../lib/api-cache');
 
 // @turf/simplify и парсер polyline
 const simplify = require('@turf/simplify').default;
-const { featureCollection } = require('@turf/helpers');
+const { feature } = require('@turf/helpers');
 const polyline = require('@mapbox/polyline');
 
 const FILES_ROOT = process.env.FILES_ROOT;
@@ -127,12 +127,12 @@ function extractLineString(geojson) {
  * Прореживает линию и возвращает массив [lat, lon].
  */
 function simplifyRoute(lineString) {
-    const simplified = simplify(featureCollection([lineString]), {
+    const simplified = simplify(feature(lineString), {
         tolerance: 0.0001, // ~10 метров; подбери под свои треки
         highQuality: true,
     });
 
-    const coords = simplified.features[0].geometry.coordinates;
+    const coords = simplified.geometry.coordinates;
     // GeoJSON: [lon, lat], а для polyline и OpenTopoData — [lat, lon]
     return coords.map(([lon, lat]) => [lat, lon]);
 }
