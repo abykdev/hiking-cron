@@ -233,7 +233,9 @@ async function main() {
     FROM routes
     WHERE (elevation_gain_m IS NULL
        OR elevation_max_m IS NULL
-       OR elevation_min_m IS NULL)
+       OR elevation_min_m IS NULL
+       OR preview_elevations IS NULL
+       )
        AND id > $1
     ORDER BY id
     LIMIT $2
@@ -329,9 +331,17 @@ async function main() {
                     `UPDATE routes
        SET elevation_gain_m = $1,
            elevation_max_m = $2,
-           elevation_min_m = $3
-       WHERE id = $4`,
-                    [stats.elevation_gain_m, stats.elevation_max_m, stats.elevation_min_m, route.id]
+           elevation_min_m = $3,
+           preview_elevations = $4::jsonb
+       WHERE id = $5`,
+                    [
+                        stats.elevation_gain_m,
+                        stats.elevation_max_m,
+                        stats.elevation_min_m,
+                        // Порядок совпадает с точками preview_polyline; точки без данных — null
+                        JSON.stringify(allElevations.map((e) => (typeof e === 'number' ? Math.round(e) : null))),
+                        route.id,
+                    ]
                 );
 
                 log.info('route enriched', { routeId: route.id, ...stats });
